@@ -6,6 +6,11 @@
   "base_url": "https://www.caddis.com.ar",
   "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
   "timezone": "America/Argentina/Buenos_Aires",
+  "download_policy": {
+    "max_attempts": 3,
+    "retry_delays_seconds": [3, 8],
+    "min_bytes": 512
+  },
   "credenciales": {
     "user": "${CADDIS_USER}",
     "pass": "${CADDIS_PASS}",
@@ -68,6 +73,13 @@
       "code": "317",
       "save_file": true,
       "save_as": "data/raw/pdv_costo/Informe_Ventas_por_PDV_c_Costo_{today:%Y%m%d}.xls",
+      "validation": {
+        "header_scan_rows": 20,
+        "allowed_formats": ["excel_xls", "excel_xlsx"],
+        "accepted_column_sets": [
+          ["Factura Tipo", "Factura Numero", "Articulo Codigo"]
+        ]
+      },
       "armar_filtro": {
         "endpoint": "/gestion/herramientas/metodos/ajax-articulos.php",
         "sfunc": "armar_filtroInformesVentas",
@@ -203,6 +215,14 @@
       "code": "305",
       "save_file": true,
       "save_as": "data/raw/formas_pago/Informe_Ventas_Formas_de_Pago_{today:%Y%m%d}.xls",
+      "validation": {
+        "header_scan_rows": 20,
+        "allowed_formats": ["excel_xls", "excel_xlsx"],
+        "accepted_column_sets": [
+          ["Fc Tipo", "Fc_Nro", "Parte"],
+          ["POS", "TPago", "Cantidad", "Importe", "Total"]
+        ]
+      },
       "armar_filtro": {
         "endpoint": "/gestion/herramientas/metodos/ajax-articulos.php",
         "sfunc": "armar_filtroInformesVentas",

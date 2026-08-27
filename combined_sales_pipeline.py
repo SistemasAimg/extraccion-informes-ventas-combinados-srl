@@ -37,7 +37,7 @@ SCHEMA_COLUMN = "Esquema Formas Pago"
 
 def _clean_headers(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
-    out.columns = [str(col).strip() for col in out.columns]
+    out.columns = [re.sub(r"\s+", " ", str(col).strip()) for col in out.columns]
     out = out.dropna(how="all").reset_index(drop=True)
     out = out.loc[:, ~out.columns.duplicated()].copy()
     return out
@@ -300,6 +300,8 @@ def _upload_gcs_outputs(
     bucket = client.bucket(bucket_name)
 
     for report in reports:
+        if report.get("raw_archived_uri"):
+            continue
         raw = report.get("content") or b""
         if not raw:
             continue
@@ -407,8 +409,25 @@ def process_combined_reports(
 
     pdv_report = _find_report(reports, code="317", name="pdv_costo")
     payment_report = _find_report(reports, code="305", name="formas_pago")
-    pdv_df = read_report_bytes_to_df(pdv_report.get("content") or b"", options={"input_format": "auto"})
-    payment_df = read_report_bytes_to_df(payment_report.get("content") or b"", options={"input_format": "auto"})
+
+    def report_dataframe(report: Mapping[str, Any], signatures: Sequence[set[str]]):
+        validated = report.get("dataframe")
+        if isinstance(validated, pd.DataFrame):
+            return validated.copy()
+        return read_report_bytes_to_df(
+            report.get("content") or b"",
+            options={
+                "input_format": "auto",
+                "header_signatures": [sorted(signature) for signature in signatures],
+                "header_scan_rows": 20,
+            },
+        )
+
+    pdv_df = report_dataframe(pdv_report, [PDV_REQUIRED])
+    payment_df = report_dataframe(
+        payment_report,
+        [PAYMENT_DETAIL_REQUIRED, PAYMENT_SUMMARY_REQUIRED],
+    )
 
     now = meta.get("now")
     if not isinstance(now, datetime):

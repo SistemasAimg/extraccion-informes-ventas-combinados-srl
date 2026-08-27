@@ -158,6 +158,39 @@ def read_report_bytes_to_df(raw_bytes: bytes, *, options: Optional[Dict[str, Any
         if df.empty:
             return df, None
 
+        # 0) Cuando el caller conoce columnas distintivas, buscamos la fila de
+        # encabezados por firma en vez de asumir que siempre está en la fila 3.
+        raw_signatures = opts.get("header_signatures") or []
+        signatures = []
+        for candidate in raw_signatures:
+            if not isinstance(candidate, (list, tuple, set)):
+                continue
+            signature = {
+                re.sub(r"\s+", " ", str(value).strip()).casefold()
+                for value in candidate
+                if value is not None and str(value).strip()
+            }
+            if signature:
+                signatures.append(signature)
+
+        if signatures:
+            scan_rows = max(1, int(opts.get("header_scan_rows", 20)))
+            for header_idx0 in range(min(scan_rows, len(df))):
+                row = df.iloc[header_idx0]
+                header_values = []
+                for value in row.tolist():
+                    if value is None or pd.isna(value):
+                        header_values.append("")
+                    else:
+                        header_values.append(
+                            re.sub(r"\s+", " ", str(value).strip())
+                        )
+                row_set = {value.casefold() for value in header_values if value}
+                if any(signature.issubset(row_set) for signature in signatures):
+                    df = df.iloc[header_idx0 + 1 :].reset_index(drop=True)
+                    df.columns = header_values
+                    return df, header_idx0 + 1
+
         # 1) Si la primera fila es idéntica a las columnas, esa fila es un encabezado repetido: drop(0)
         try:
             first_row_vals = [str(x) for x in df.iloc[0].tolist()]

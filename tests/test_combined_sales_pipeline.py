@@ -99,6 +99,14 @@ class CombinedSalesPipelineTest(unittest.TestCase):
         self.assertEqual(len(history), 1)
         self.assertEqual(float(history.iloc[0]["Total"]), 100.0)
 
+    def test_empty_reports_with_valid_headers_are_accepted(self):
+        empty_pdv = self.pdv.iloc[0:0].copy()
+        empty_payments = self.payment_detail.iloc[0:0].copy()
+        result = combine_sales_dataframes(empty_pdv, empty_payments)
+        self.assertEqual(result["payment_schema"], "detalle")
+        self.assertTrue(result["combined"].empty)
+        self.assertEqual(int(result["control"].iloc[0]["Filas PDV"]), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

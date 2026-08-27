@@ -40,7 +40,7 @@ Las ejecuciones diarias se superponen:
 Por eso no se hace append ciego. La historia local reemplaza las fechas de la ventana y Cloud Storage mantiene particiones reemplazables:
 
 ```text
-caddis/ventas-combinadas-srl/raw/<informe>/<run_id>/<archivo>.xls
+caddis/ventas-combinadas-srl/raw/<informe>/<run_id>/attempt-XX/<archivo>.xls
 caddis/ventas-combinadas-srl/history/ventas_combinadas/fecha=YYYY-MM-DD/data.csv
 caddis/ventas-combinadas-srl/current/ventas_combinadas.csv
 caddis/ventas-combinadas-srl/current/pdv_raw.csv
@@ -49,6 +49,25 @@ caddis/ventas-combinadas-srl/current/control.csv
 ```
 
 Repetir una ejecución no duplica la fecha y permite incorporar correcciones o anulaciones de Caddis.
+
+## Descargas resilientes
+
+Cada informe se valida antes de combinarlo. El job comprueba HTTP, tamaño,
+formato real y columnas mínimas. Todos los intentos se archivan inmediatamente
+en Cloud Storage, incluso cuando Caddis devuelve HTML o un XLS inválido.
+
+La política por defecto realiza tres intentos: el primero inmediato y los
+siguientes después de 3 y 8 segundos. Cada intento vuelve a preparar la
+pantalla, ejecutar `armar_filtroInformesVentas` y descargar el informe. Si
+Caddis devuelve HTML, además se renueva la sesión.
+
+Los logs informan código de informe, intento, bytes, tipo de contenido, formato,
+hash abreviado, filas, columnas y fila de encabezado. Nunca registran cookies,
+credenciales ni contenido de ventas.
+
+La fila de encabezados se busca dentro de las primeras 20 filas mediante
+columnas distintivas. Se toleran espacios extra y diferencias de mayúsculas.
+Un informe sin registros se considera válido cuando conserva sus encabezados.
 
 ## Configuración
 
@@ -109,6 +128,11 @@ Las pruebas cubren:
 - Conservación de facturas `X` sin cobranza.
 - Detección de un informe de pagos resumido.
 - Reemplazo idempotente de la ventana histórica.
+- Detección de encabezados desplazados.
+- Normalización de espacios y mayúsculas.
+- Rechazo de HTML y esquemas desconocidos.
+- Archivado de cada intento y recuperación en el segundo intento.
+- Informes válidos sin registros.
 
 ## Google Cloud
 
