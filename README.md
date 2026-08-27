@@ -40,12 +40,12 @@ Las ejecuciones diarias se superponen:
 Por eso no se hace append ciego. La historia local reemplaza las fechas de la ventana y Cloud Storage mantiene particiones reemplazables:
 
 ```text
-caddis/srl/raw/<informe>/<run_id>/<archivo>.xls
-caddis/srl/history/ventas_combinadas/fecha=YYYY-MM-DD/data.csv
-caddis/srl/current/ventas_combinadas.csv
-caddis/srl/current/pdv_raw.csv
-caddis/srl/current/formas_pago_raw.csv
-caddis/srl/current/control.csv
+caddis/ventas-combinadas-srl/raw/<informe>/<run_id>/<archivo>.xls
+caddis/ventas-combinadas-srl/history/ventas_combinadas/fecha=YYYY-MM-DD/data.csv
+caddis/ventas-combinadas-srl/current/ventas_combinadas.csv
+caddis/ventas-combinadas-srl/current/pdv_raw.csv
+caddis/ventas-combinadas-srl/current/formas_pago_raw.csv
+caddis/ventas-combinadas-srl/current/control.csv
 ```
 
 Repetir una ejecución no duplica la fecha y permite incorporar correcciones o anulaciones de Caddis.
@@ -72,7 +72,7 @@ Variables opcionales:
 
 ```text
 CADDIS_GRUPO       # por defecto GPSMUNDO
-GOOGLE_SHEET_ID    # solo si se habilita google_sheets en vars.yml
+GOOGLE_SHEET_ID    # configurado por el workflow para Cloud Run
 ```
 
 No guardar credenciales, cookies, `PHPSESSID` ni JSON de cuentas de servicio en Git.
@@ -123,8 +123,8 @@ El workflow de GitHub Actions:
 Antes del primer despliegue deben existir en Secret Manager:
 
 ```text
-caddis-user
-caddis-pass
+caddis-usuario
+caddis-password
 ```
 
 La cuenta de ejecución `cloudrun@storage-entorno-de-desarrollo.iam.gserviceaccount.com` necesita:
@@ -141,10 +141,14 @@ Documentación oficial:
 
 ## Google Sheets
 
-La publicación está implementada pero deshabilitada por defecto en `vars.yml`. Para activarla:
+La publicación está habilitada en `vars.yml`. El workflow configura el ID de la planilla y el pipeline crea automáticamente las pestañas que falten:
 
-1. Crear previamente las pestañas `Ventas combinadas`, `PDV raw`, `Formas pago raw` y `Control`.
-2. Configurar `GOOGLE_SHEET_ID`.
-3. Cambiar `combined_output.options.google_sheets.enabled` a `true`.
+- `Ventas combinadas`
+- `PDV raw`
+- `Formas pago raw`
+- `Control`
+
+La planilla debe estar compartida como editora con `cloudrun@storage-entorno-de-desarrollo.iam.gserviceaccount.com`.
 
 Sheets muestra la ventana procesada; Cloud Storage conserva el histórico completo y los Excel originales.
+Los objetos de este proyecto se guardan bajo el prefijo aislado `caddis/ventas-combinadas-srl`.

@@ -295,7 +295,7 @@ def _upload_gcs_outputs(
     except Exception as exc:
         raise RuntimeError("Falta instalar google-cloud-storage para usar el histórico GCS.") from exc
 
-    prefix = str(gcs_cfg.get("prefix", "caddis/srl")).strip("/")
+    prefix = str(gcs_cfg.get("prefix", "caddis/ventas-combinadas-srl")).strip("/")
     client = storage.Client(project=gcs_cfg.get("project") or None)
     bucket = client.bucket(bucket_name)
 
@@ -350,6 +350,37 @@ def _upload_google_sheets(tables: Mapping[str, Any], options: Mapping[str, Any])
         "payments": tabs.get("payments", "Formas pago raw"),
         "control": tabs.get("control", "Control"),
     }
+
+    # Una planilla recién creada normalmente contiene sólo "Hoja 1". Creamos
+    # las pestañas de salida faltantes para que el primer despliegue no dependa
+    # de una preparación manual adicional.
+    from googleapiclient.discovery import build
+
+    service = build("sheets", "v4", credentials=credentials, cache_discovery=False)
+    metadata = service.spreadsheets().get(
+        spreadsheetId=sheet_id,
+        fields="sheets.properties.title",
+    ).execute()
+    existing_tabs = {
+        str(item.get("properties", {}).get("title", ""))
+        for item in metadata.get("sheets", [])
+    }
+    missing_tabs = [
+        str(title)
+        for title in dict.fromkeys(mapping.values())
+        if str(title) not in existing_tabs
+    ]
+    if missing_tabs:
+        service.spreadsheets().batchUpdate(
+            spreadsheetId=sheet_id,
+            body={
+                "requests": [
+                    {"addSheet": {"properties": {"title": title}}}
+                    for title in missing_tabs
+                ]
+            },
+        ).execute()
+
     for key, tab_name in mapping.items():
         frame = tables[key].copy()
         frame.attrs["timezone"] = options.get("timezone", "America/Argentina/Buenos_Aires")

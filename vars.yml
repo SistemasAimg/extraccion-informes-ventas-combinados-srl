@@ -1,6 +1,6 @@
 {
   "ci": {
-    "base_name": "extraccion-informe-articulos",
+    "base_name": "extraccion-informes-ventas-combinados",
     "suffix": "srl"
   },
   "base_url": "https://www.caddis.com.ar",
@@ -342,10 +342,10 @@
       "gcs": {
         "enabled": true,
         "bucket": "${CADDIS_HISTORY_BUCKET}",
-        "prefix": "caddis/srl"
+        "prefix": "caddis/ventas-combinadas-srl"
       },
       "google_sheets": {
-        "enabled": false,
+        "enabled": true,
         "sheet_id": "${GOOGLE_SHEET_ID}",
         "tabs": {
           "combined": "Ventas combinadas",
