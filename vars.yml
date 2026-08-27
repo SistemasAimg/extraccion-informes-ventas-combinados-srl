@@ -1,0 +1,359 @@
+{
+  "ci": {
+    "base_name": "extraccion-informe-articulos",
+    "suffix": "srl"
+  },
+  "base_url": "https://www.caddis.com.ar",
+  "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+  "timezone": "America/Argentina/Buenos_Aires",
+  "credenciales": {
+    "user": "${CADDIS_USER}",
+    "pass": "${CADDIS_PASS}",
+    "grupo": "GPSMUNDO"
+  },
+  "base_select": "179",
+  "date_macros": {
+    "today_ymd": "{today:%Y-%m-%d}",
+    "today_dmy": "{today:%d/%m/%Y}",
+    "yesterday_ymd": "{yesterday:%Y-%m-%d}",
+    "yesterday_dmy": "{yesterday:%d/%m/%Y}"
+  },
+  "preflights_index_main": [
+    {
+      "sfunc": "unsetVariableSession",
+      "args_raw": "%5B%22msg_error%22%5D"
+    },
+    {
+      "sfunc": "unsetVariableSession",
+      "args_raw": "%5B%22SQL_Grilla%22%5D"
+    },
+    {
+      "sfunc": "unsetVariableSession",
+      "args_raw": "%5B%22Filtro%22%5D"
+    },
+    {
+      "sfunc": "dVariableSesion",
+      "args_raw": "%5B%22msg_error%22%5D"
+    },
+    {
+      "sfunc": "unsetVariableSession",
+      "args_raw": "%5B%22msg_error%22%5D"
+    },
+    {
+      "sfunc": "unsetVariableSession",
+      "args_raw": "%5B%22SQL_Grilla%22%5D"
+    },
+    {
+      "sfunc": "dVariableSesion",
+      "args_raw": "%5B%22userid%22%5D"
+    }
+  ],
+  "preflights_pantalla": [
+    {
+      "sfunc": "dVariableSesion",
+      "args_raw": "%5B%22userid%22%5D"
+    },
+    {
+      "sfunc": "dVariableSesion",
+      "args_raw": "%5B%22userid%22%5D"
+    },
+    {
+      "sfunc": "unsetVariableSession",
+      "args_raw": "%5B%22SQL_Grilla%22%5D"
+    }
+  ],
+  "reports": [
+    {
+      "name": "pdv_costo",
+      "code": "317",
+      "save_file": true,
+      "save_as": "data/raw/pdv_costo/Informe_Ventas_por_PDV_c_Costo_{today:%Y%m%d}.xls",
+      "armar_filtro": {
+        "endpoint": "/gestion/herramientas/metodos/ajax-articulos.php",
+        "sfunc": "armar_filtroInformesVentas",
+        "args": [
+          "317",
+          "",
+          "",
+          "",
+          "",
+          "{yesterday:%Y-%m-%d}",
+          "{today:%Y-%m-%d}",
+          "",
+          "",
+          "NULL",
+          "NULL",
+          "1",
+          "1",
+          "NULL",
+          "NULL",
+          "NULL",
+          "",
+          "",
+          "",
+          "",
+          "NULL",
+          "1",
+          "NULL",
+          "1",
+          "NULL",
+          "1",
+          "NULL",
+          "1",
+          "",
+          "",
+          "",
+          "NULL",
+          "NULL",
+          "NULL",
+          "NULL",
+          "NULL",
+          "NULL",
+          "",
+          "0",
+          "",
+          "undefined",
+          "NULL",
+          "NULL",
+          "undefined",
+          "0",
+          "0",
+          "NULL",
+          "",
+          "NULL",
+          1,
+          "NULL",
+          "NULL",
+          "NULL",
+          "",
+          "NULL",
+          "NULL",
+          "NULL",
+          "NULL",
+          "NULL",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Accept": "*/*",
+          "Origin": "https://www.caddis.com.ar",
+          "Sec-Fetch-Site": "same-origin",
+          "Sec-Fetch-Mode": "cors",
+          "Sec-Fetch-Dest": "empty",
+          "Referer": "https://www.caddis.com.ar/gestion/herramientas/pantallas/pantalla_informes_filtro.php?Informe_Codigo={code}",
+          "Accept-Language": "es-419,es;q=0.9,en-GB;q=0.8,en;q=0.7"
+        }
+      },
+      "download": {
+        "endpoint": "/gestion/herramientas/informes/informes_excel.php",
+        "data": {
+          "field_desde": "{yesterday:%d/%m/%Y}",
+          "field_hasta": "{today:%d/%m/%Y}",
+          "field_negocio": "NULL",
+          "field_arttipo": "NULL",
+          "field_arttipos": "",
+          "field_arttipo_chk": "0",
+          "field_artgrupo": "NULL",
+          "field_artmarca": "NULL",
+          "field_proveedor": "NULL",
+          "field_articulo": "",
+          "field_artactivo": "NULL",
+          "field_pos_todos": "1",
+          "field_pos_zona": "NULL",
+          "field_pos_tipo": "NULL",
+          "field_pos": "NULL",
+          "field_pos_activo": "1",
+          "field_vendedor": "NULL",
+          "field_vendedor_activo": "1",
+          "field_supervisor": "NULL",
+          "field_supervisor_activo": "1",
+          "field_subgerente": "NULL",
+          "field_subgerente_activo": "1",
+          "field_gerente": "NULL",
+          "field_gerente_activo": "1",
+          "accion": "",
+          "Informe": "317",
+          "SubTitulo": "Del {yesterday:%d/%m/%Y} al {today:%d/%m/%Y}",
+          "Filtro": "",
+          "Filtro_A1": "",
+          "Filtro_A2": "",
+          "Filtro_A3": ""
+        },
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Origin": "https://www.caddis.com.ar",
+          "Sec-Fetch-Site": "same-origin",
+          "Sec-Fetch-Mode": "navigate",
+          "Sec-Fetch-User": "?1",
+          "Sec-Fetch-Dest": "iframe",
+          "Referer": "https://www.caddis.com.ar/gestion/herramientas/pantallas/pantalla_informes_filtro.php?Informe_Codigo={code}"
+        }
+      }
+    },
+    {
+      "name": "formas_pago",
+      "code": "305",
+      "save_file": true,
+      "save_as": "data/raw/formas_pago/Informe_Ventas_Formas_de_Pago_{today:%Y%m%d}.xls",
+      "armar_filtro": {
+        "endpoint": "/gestion/herramientas/metodos/ajax-articulos.php",
+        "sfunc": "armar_filtroInformesVentas",
+        "args": [
+          "305",
+          "305",
+          "",
+          "",
+          "",
+          "{yesterday:%Y-%m-%d}",
+          "{today:%Y-%m-%d}",
+          "",
+          "",
+          "NULL",
+          "NULL",
+          "1",
+          "1",
+          "NULL",
+          "NULL",
+          "NULL",
+          "",
+          "",
+          "",
+          "",
+          "NULL",
+          "NULL",
+          "NULL",
+          "NULL",
+          "NULL",
+          "NULL",
+          "NULL",
+          "NULL",
+          "",
+          "",
+          "",
+          "NULL",
+          "NULL",
+          "NULL",
+          "NULL",
+          "NULL",
+          "NULL",
+          "",
+          "0",
+          "",
+          "undefined",
+          "NULL",
+          "NULL",
+          "undefined",
+          "0",
+          "0",
+          "NULL",
+          "",
+          "NULL",
+          1,
+          "NULL",
+          "NULL",
+          "NULL",
+          "",
+          "NULL",
+          "NULL",
+          "NULL",
+          "NULL",
+          "NULL",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Accept": "*/*",
+          "Origin": "https://www.caddis.com.ar",
+          "Sec-Fetch-Site": "same-origin",
+          "Sec-Fetch-Mode": "cors",
+          "Sec-Fetch-Dest": "empty",
+          "Referer": "https://www.caddis.com.ar/gestion/herramientas/pantallas/pantalla_informes_filtro.php?Informe_Codigo={code}",
+          "Accept-Language": "es-419,es;q=0.9,en-GB;q=0.8,en;q=0.7"
+        }
+      },
+      "download": {
+        "endpoint": "/gestion/herramientas/informes/informes_excel.php",
+        "data": {
+          "field_desde": "{yesterday:%d/%m/%Y}",
+          "field_hasta": "{today:%d/%m/%Y}",
+          "field_vista": "305",
+          "dato_cliente": "",
+          "field_cliente": "NULL",
+          "field_negocio": "NULL",
+          "field_arttipo": "NULL",
+          "field_arttipos": "",
+          "field_arttipo_chk": "0",
+          "field_artgrupo": "NULL",
+          "field_artmarca": "NULL",
+          "field_proveedor": "NULL",
+          "field_articulo": "",
+          "field_artactivo": "NULL",
+          "field_pos_todos": "1",
+          "field_pos_zona": "NULL",
+          "field_pos_tipo": "NULL",
+          "field_pos": "NULL",
+          "field_pos_activo": "1",
+          "accion": "",
+          "Informe": "305",
+          "SubTitulo": "Del {yesterday:%d/%m/%Y} al {today:%d/%m/%Y}",
+          "Filtro": "",
+          "Filtro_A1": "",
+          "Filtro_A2": "",
+          "Filtro_A3": ""
+        },
+        "headers": {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Origin": "https://www.caddis.com.ar",
+          "Sec-Fetch-Site": "same-origin",
+          "Sec-Fetch-Mode": "navigate",
+          "Sec-Fetch-User": "?1",
+          "Sec-Fetch-Dest": "iframe",
+          "Referer": "https://www.caddis.com.ar/gestion/herramientas/pantallas/pantalla_informes_filtro.php?Informe_Codigo={code}"
+        }
+      }
+    }
+  ],
+  "combined_output": {
+    "enabled": true,
+    "module": "combined_sales_pipeline",
+    "function": "process_combined_reports",
+    "options": {
+      "local_dir": "data",
+      "history": {
+        "enabled": true,
+        "file": "history/ventas_combinadas.csv"
+      },
+      "gcs": {
+        "enabled": true,
+        "bucket": "${CADDIS_HISTORY_BUCKET}",
+        "prefix": "caddis/srl"
+      },
+      "google_sheets": {
+        "enabled": false,
+        "sheet_id": "${GOOGLE_SHEET_ID}",
+        "tabs": {
+          "combined": "Ventas combinadas",
+          "pdv": "PDV raw",
+          "payments": "Formas pago raw",
+          "control": "Control"
+        }
+      }
+    }
+  }
+}

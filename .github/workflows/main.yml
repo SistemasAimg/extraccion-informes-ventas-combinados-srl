@@ -1,0 +1,109 @@
+name: Deploy combined Caddis pipeline
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: storage-entorno-de-desarrollo
+  PROJECT_NUMBER: "104248082609"
+  REGION: us-central1
+  BASE_NAME: extraccion-informe-articulos
+  SUFFIX: srl
+  SERVICE_ACCOUNT: cloudrun@storage-entorno-de-desarrollo.iam.gserviceaccount.com
+  HISTORY_BUCKET: storage-entorno-de-desarrollo-caddis-reportes-srl
+  SCHEDULER_JOB_NAME: extraccion-informe-articulos-srl-diario
+
+jobs:
+  test-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - id: auth
+        name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/104248082609/locations/global/workloadIdentityPools/github/providers/github-provider-v2
+          service_account: cloudrun@storage-entorno-de-desarrollo.iam.gserviceaccount.com
+          create_credentials_file: true
+
+      - name: Set up Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      - name: Install and test
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python -m unittest discover -s tests -v
+          python -m py_compile caddis_combined_job.py combined_sales_pipeline.py caddis_replay_all_steps.py report_pipeline.py
+
+      - name: Derive resource names
+        run: |
+          echo "REPO_NAME=repo-${BASE_NAME}" >> "$GITHUB_ENV"
+          echo "IMAGE_NAME=${BASE_NAME}-${SUFFIX}" >> "$GITHUB_ENV"
+          echo "JOB_NAME=${BASE_NAME}-${SUFFIX}" >> "$GITHUB_ENV"
+
+      - name: Enable APIs and ensure storage resources
+        run: |
+          gcloud services enable run.googleapis.com artifactregistry.googleapis.com cloudscheduler.googleapis.com secretmanager.googleapis.com storage.googleapis.com
+          gcloud artifacts repositories describe "$REPO_NAME" --location "$REGION" >/dev/null 2>&1 ||             gcloud artifacts repositories create "$REPO_NAME" --repository-format docker --location "$REGION"
+          gcloud storage buckets describe "gs://$HISTORY_BUCKET" >/dev/null 2>&1 ||             gcloud storage buckets create "gs://$HISTORY_BUCKET" --project "$PROJECT_ID" --location "$REGION" --uniform-bucket-level-access
+
+      - name: Build and push image
+        run: |
+          gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+          IMAGE_URI="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:${GITHUB_SHA}"
+          docker build -t "$IMAGE_URI" .
+          docker push "$IMAGE_URI"
+          echo "IMAGE_URI=$IMAGE_URI" >> "$GITHUB_ENV"
+
+      - name: Deploy Cloud Run Job
+        run: |
+          COMMON_ARGS=(
+            --image "$IMAGE_URI"
+            --region "$REGION"
+            --service-account "$SERVICE_ACCOUNT"
+            --memory 1Gi
+            --task-timeout 20m
+            --max-retries 1
+            --set-env-vars "CADDIS_HISTORY_BUCKET=$HISTORY_BUCKET,CADDIS_GRUPO=GPSMUNDO"
+            --set-secrets "CADDIS_USER=caddis-user:latest,CADDIS_PASS=caddis-pass:latest"
+          )
+          if gcloud run jobs describe "$JOB_NAME" --region "$REGION" >/dev/null 2>&1; then
+            gcloud run jobs update "$JOB_NAME" "${COMMON_ARGS[@]}"
+          else
+            gcloud run jobs create "$JOB_NAME" "${COMMON_ARGS[@]}"
+          fi
+
+      - name: Configure daily 00:30 schedule
+        run: |
+          gcloud run jobs add-iam-policy-binding "$JOB_NAME"             --region "$REGION"             --member "serviceAccount:$SERVICE_ACCOUNT"             --role roles/run.invoker
+          RUN_URI="https://run.googleapis.com/v2/projects/${PROJECT_ID}/locations/${REGION}/jobs/${JOB_NAME}:run"
+          SCHEDULER_ARGS=(
+            --location "$REGION"
+            --schedule "30 0 * * *"
+            --time-zone "America/Argentina/Buenos_Aires"
+            --uri "$RUN_URI"
+            --http-method POST
+            --oauth-service-account-email "$SERVICE_ACCOUNT"
+          )
+          if gcloud scheduler jobs describe "$SCHEDULER_JOB_NAME" --location "$REGION" >/dev/null 2>&1; then
+            gcloud scheduler jobs update http "$SCHEDULER_JOB_NAME" "${SCHEDULER_ARGS[@]}"
+          else
+            gcloud scheduler jobs create http "$SCHEDULER_JOB_NAME" "${SCHEDULER_ARGS[@]}"
+          fi
