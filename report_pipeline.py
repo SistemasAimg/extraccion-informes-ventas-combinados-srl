@@ -775,6 +775,14 @@ def upload_to_sheet(
             idx = idx * 26 + (ord(ch) - ord('A') + 1)
         return col_letters, idx - 1, row
 
+    def _column_letters(index_zero_based: int) -> str:
+        value = index_zero_based + 1
+        letters = ""
+        while value:
+            value, remainder = divmod(value - 1, 26)
+            letters = chr(ord("A") + remainder) + letters
+        return letters
+
     def _write_timestamp(service, sheet_id: str, sheet_name: str, tz_str: str | None):
         tzname = tz_str or "America/Argentina/Buenos_Aires"
         if pytz:
@@ -1045,9 +1053,10 @@ def upload_to_sheet(
     # ---------------------------
     print(f"[SHEETS] write_mode=append sheet_id={sheet_id} sheet_name={sheet_name} start_cell={start_cell}")
     try:
+        last_col_letters = _column_letters(start_col_idx + max(df.shape[1] - 1, 0))
         read = service.spreadsheets().values().get(
             spreadsheetId=sheet_id,
-            range=_a1_range(sheet_name, "A:AZ")
+            range=_a1_range(sheet_name, f"{start_col_letters}:{last_col_letters}")
         ).execute()
         rows = read.get("values", [])
         last_row_any = _last_non_empty_row(rows)

@@ -267,6 +267,116 @@ def _safe_name(value: str) -> str:
     return value.strip("._") or "report"
 
 
+def _normalise_append_key_value(value: Any) -> str:
+    if value is None or pd.isna(value):
+        return ""
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    text = re.sub(r"\s+", "", str(value).strip().upper())
+    if re.fullmatch(r"-?\d+\.0+", text):
+        return text.split(".", 1)[0]
+    return text
+
+
+def filter_new_rows_for_append(
+    current: pd.DataFrame,
+    *,
+    existing_keys: set[tuple[str, ...]],
+    key_columns: Sequence[str],
+) -> pd.DataFrame:
+    """Conserva sólo claves todavía ausentes y evita duplicarlas en el mismo lote."""
+
+    missing = [column for column in key_columns if column not in current.columns]
+    if missing:
+        raise ValueError(f"Faltan columnas para deduplicar Google Sheets: {missing}")
+
+    seen = set(existing_keys)
+    keep = []
+    for index, row in current.iterrows():
+        key = tuple(_normalise_append_key_value(row[column]) for column in key_columns)
+        if key in seen:
+            continue
+        seen.add(key)
+        keep.append(index)
+    filtered = current.loc[keep].copy()
+    filtered.attrs.update(current.attrs)
+    return filtered
+
+
+def _column_letters(index_zero_based: int) -> str:
+    value = index_zero_based + 1
+    letters = ""
+    while value:
+        value, remainder = divmod(value - 1, 26)
+        letters = chr(ord("A") + remainder) + letters
+    return letters
+
+
+def _sheet_a1(sheet_name: str, a1: str) -> str:
+    escaped = str(sheet_name).replace("'", "''")
+    return f"'{escaped}'!{a1}"
+
+
+def _read_google_sheet_keys(
+    service,
+    *,
+    sheet_id: str,
+    sheet_name: str,
+    frame: pd.DataFrame,
+    key_columns: Sequence[str],
+) -> set[tuple[str, ...]] | None:
+    """Lee sólo las columnas clave; None indica que la pestaña aún no tiene encabezado."""
+
+    if frame.shape[1] < 1:
+        return set()
+    last_column = _column_letters(frame.shape[1] - 1)
+    header_response = service.spreadsheets().values().get(
+        spreadsheetId=sheet_id,
+        range=_sheet_a1(sheet_name, f"A3:{last_column}3"),
+    ).execute()
+    header_rows = header_response.get("values", [])
+    if not header_rows or not any(str(value).strip() for value in header_rows[0]):
+        return None
+
+    header = [re.sub(r"\s+", " ", str(value).strip()) for value in header_rows[0]]
+    missing = [column for column in key_columns if column not in header]
+    if missing:
+        raise ValueError(
+            f"La pestaña {sheet_name!r} no contiene las columnas de deduplicación: {missing}"
+        )
+    positions = [header.index(column) for column in key_columns]
+    ranges = [
+        _sheet_a1(sheet_name, f"{_column_letters(position)}4:{_column_letters(position)}")
+        for position in positions
+    ]
+    response = service.spreadsheets().values().batchGet(
+        spreadsheetId=sheet_id,
+        ranges=ranges,
+    ).execute()
+    columns = []
+    for value_range in response.get("valueRanges", []):
+        columns.append(
+            [row[0] if row else "" for row in value_range.get("values", [])]
+        )
+    while len(columns) < len(key_columns):
+        columns.append([])
+
+    row_count = max((len(column) for column in columns), default=0)
+    result = set()
+    for row_index in range(row_count):
+        key = tuple(
+            _normalise_append_key_value(
+                column[row_index] if row_index < len(column) else ""
+            )
+            for column in columns
+        )
+        if any(key):
+            result.add(key)
+    return result
+
+
 def _find_report(reports: Sequence[Mapping[str, Any]], *, code: str, name: str):
     for report in reports:
         if str(report.get("code", "")) == code or str(report.get("name", "")) == name:
@@ -352,6 +462,13 @@ def _upload_google_sheets(tables: Mapping[str, Any], options: Mapping[str, Any])
         "payments": tabs.get("payments", "Formas pago raw"),
         "control": tabs.get("control", "Control"),
     }
+    configured_modes = sheets_cfg.get("write_modes") or {}
+    write_modes = {
+        "combined": configured_modes.get("combined", "append_deduplicated"),
+        "pdv": configured_modes.get("pdv", "replace"),
+        "payments": configured_modes.get("payments", "replace"),
+        "control": configured_modes.get("control", "append"),
+    }
 
     # Una planilla recién creada normalmente contiene sólo "Hoja 1". Creamos
     # las pestañas de salida faltantes para que el primer despliegue no dependa
@@ -386,13 +503,49 @@ def _upload_google_sheets(tables: Mapping[str, Any], options: Mapping[str, Any])
     for key, tab_name in mapping.items():
         frame = tables[key].copy()
         frame.attrs["timezone"] = options.get("timezone", "America/Argentina/Buenos_Aires")
+        mode = str(write_modes.get(key, "replace")).strip().lower()
+        append_header = False
+        if mode == "append_deduplicated":
+            if key != "combined":
+                raise ValueError("append_deduplicated sólo está soportado para Ventas combinadas.")
+            existing_keys = _read_google_sheet_keys(
+                service,
+                sheet_id=sheet_id,
+                sheet_name=str(tab_name),
+                frame=frame,
+                key_columns=[KEY_COLUMN, OCCURRENCE_COLUMN],
+            )
+            if existing_keys is not None:
+                original_rows = len(frame)
+                frame = filter_new_rows_for_append(
+                    frame,
+                    existing_keys=existing_keys,
+                    key_columns=[KEY_COLUMN, OCCURRENCE_COLUMN],
+                )
+                logging.info(
+                    "[SHEETS] pestaña=%s recibidas=%s nuevas=%s omitidas=%s",
+                    tab_name,
+                    original_rows,
+                    len(frame),
+                    original_rows - len(frame),
+                )
+            mode = "append"
+            append_header = True
+        elif mode == "append":
+            append_header = True
+        elif mode != "replace":
+            raise ValueError(f"Modo de escritura de Google Sheets desconocido: {mode!r}")
+
+        if frame.empty and mode == "append":
+            logging.info("[SHEETS] pestaña=%s sin filas nuevas; no se escribe.", tab_name)
+            continue
         upload_to_sheet(
             frame,
             sheet_id,
             str(tab_name),
             credentials,
-            write_mode="replace",
-            append_header=False,
+            write_mode=mode,
+            append_header=append_header,
             start_cell="A3",
         )
 

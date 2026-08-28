@@ -9,6 +9,7 @@ from combined_sales_pipeline import (
     STATUS_COLUMN,
     classify_payment_schema,
     combine_sales_dataframes,
+    filter_new_rows_for_append,
     update_history_dataframe,
 )
 
@@ -106,6 +107,32 @@ class CombinedSalesPipelineTest(unittest.TestCase):
         self.assertEqual(result["payment_schema"], "detalle")
         self.assertTrue(result["combined"].empty)
         self.assertEqual(int(result["control"].iloc[0]["Filas PDV"]), 0)
+
+    def test_sheet_append_filters_existing_keys_without_repeating_headers(self):
+        current = combine_sales_dataframes(self.pdv, self.payment_detail)["combined"]
+        first_key = (
+            str(current.iloc[0]["Clave Cruce"]),
+            str(current.iloc[0]["Indice Coincidencia"]),
+        )
+        filtered = filter_new_rows_for_append(
+            current,
+            existing_keys={first_key},
+            key_columns=["Clave Cruce", "Indice Coincidencia"],
+        )
+
+        self.assertEqual(len(filtered), 1)
+        self.assertEqual(filtered.iloc[0]["Factura Tipo"], "X")
+
+    def test_sheet_append_deduplicates_repeated_rows_in_same_batch(self):
+        current = combine_sales_dataframes(self.pdv, self.payment_detail)["combined"]
+        repeated = pd.concat([current.iloc[[0]], current.iloc[[0]]], ignore_index=True)
+        filtered = filter_new_rows_for_append(
+            repeated,
+            existing_keys=set(),
+            key_columns=["Clave Cruce", "Indice Coincidencia"],
+        )
+
+        self.assertEqual(len(filtered), 1)
 
 
 if __name__ == "__main__":

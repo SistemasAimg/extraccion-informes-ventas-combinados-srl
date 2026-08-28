@@ -372,6 +372,12 @@
           "pdv": "PDV raw",
           "payments": "Formas pago raw",
           "control": "Control"
+        },
+        "write_modes": {
+          "combined": "append_deduplicated",
+          "pdv": "replace",
+          "payments": "replace",
+          "control": "append"
         }
       }
     }

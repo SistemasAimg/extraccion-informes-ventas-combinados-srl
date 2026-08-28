@@ -50,6 +50,17 @@ caddis/ventas-combinadas-srl/current/control.csv
 
 Repetir una ejecución no duplica la fecha y permite incorporar correcciones o anulaciones de Caddis.
 
+## Google Sheets acumulativo
+
+La pestaña `Ventas combinadas` conserva las filas existentes y agrega únicamente
+claves nuevas al final de la siguiente fila disponible. La comparación usa
+`Clave Cruce + Indice Coincidencia`, por lo que la ventana superpuesta
+`ayer → hoy` y las reejecuciones no duplican ventas. Los encabezados se crean
+sólo cuando la pestaña está vacía y no se vuelven a insertar en cada ejecución.
+
+`PDV raw` y `Formas pago raw` siguen representando el último corte descargado y
+se reemplazan. `Control` agrega una fila por ejecución para conservar la traza.
+
 ## Descargas resilientes
 
 Cada informe se valida antes de combinarlo. El job comprueba HTTP, tamaño,
