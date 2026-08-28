@@ -83,7 +83,7 @@ jobs:
             --task-timeout 20m
             --max-retries 1
             --set-env-vars "CADDIS_HISTORY_BUCKET=$HISTORY_BUCKET,CADDIS_GRUPO=GPSMUNDO,GOOGLE_SHEET_ID=$GOOGLE_SHEET_ID"
-            --set-secrets "CADDIS_USER=caddis-usuario:latest,CADDIS_PASS=caddis-password:latest"
+            --set-secrets "CADDIS_USER=caddis-web-usuario:latest,CADDIS_PASS=caddis-web-password:latest"
           )
           if gcloud run jobs describe "$JOB_NAME" --region "$REGION" >/dev/null 2>&1; then
             gcloud run jobs update "$JOB_NAME" "${COMMON_ARGS[@]}"

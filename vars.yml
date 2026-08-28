@@ -228,7 +228,7 @@
         "sfunc": "armar_filtroInformesVentas",
         "args": [
           "305",
-          "305",
+          "331",
           "",
           "",
           "",
@@ -311,7 +311,7 @@
         "data": {
           "field_desde": "{yesterday:%d/%m/%Y}",
           "field_hasta": "{today:%d/%m/%Y}",
-          "field_vista": "305",
+          "field_vista": "331",
           "dato_cliente": "",
           "field_cliente": "NULL",
           "field_negocio": "NULL",
@@ -329,7 +329,7 @@
           "field_pos": "NULL",
           "field_pos_activo": "1",
           "accion": "",
-          "Informe": "305",
+          "Informe": "331",
           "SubTitulo": "Del {yesterday:%d/%m/%Y} al {today:%d/%m/%Y}",
           "Filtro": "",
           "Filtro_A1": "",

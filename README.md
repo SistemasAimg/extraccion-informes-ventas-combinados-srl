@@ -3,7 +3,7 @@
 Este repositorio ejecuta diariamente dos informes de Caddis dentro de una misma sesión:
 
 - `317`: Ventas por PDV con costo.
-- `305`: Ventas por formas de pago.
+- `305`, vista detallada `331`: Ventas por formas de pago.
 
 El job usa la ventana inclusiva **ayer → hoy**, conserva los Excel originales y genera una tabla combinada con control de diferencias.
 
@@ -11,7 +11,7 @@ El job usa la ventana inclusiva **ayer → hoy**, conserva los Excel originales 
 
 `Ventas por PDV con costo` es la tabla principal. Las facturas `X` y cualquier movimiento que no tenga cobranza se conservan siempre.
 
-Cuando el informe 305 es detallado, la relación utiliza:
+Cuando el informe base 305 se descarga con la vista detallada 331, la relación utiliza:
 
 ```text
 Factura Tipo / Fc Tipo
@@ -26,7 +26,7 @@ El resultado clasifica cada fila como:
 - `SOLO_PDV`
 - `SOLO_FORMA_PAGO`
 
-Si el informe 305 llega resumido (`POS`, `TPago`, `Cantidad`, `Importe`, etc.), el job no inventa una relación. Guarda el resumen por separado y marca las filas PDV como `FORMA_PAGO_RESUMIDA_NO_RELACIONABLE`.
+Si Caddis devuelve la vista resumida (`POS`, `TPago`, `Cantidad`, `Importe`, etc.), el job no inventa una relación. Guarda el resumen por separado y marca las filas PDV como `FORMA_PAGO_RESUMIDA_NO_RELACIONABLE`.
 
 ## Histórico sin duplicados
 
@@ -147,8 +147,8 @@ El workflow de GitHub Actions:
 Antes del primer despliegue deben existir en Secret Manager:
 
 ```text
-caddis-usuario
-caddis-password
+caddis-web-usuario
+caddis-web-password
 ```
 
 La cuenta de ejecución `cloudrun@storage-entorno-de-desarrollo.iam.gserviceaccount.com` necesita:
