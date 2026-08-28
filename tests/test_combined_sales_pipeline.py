@@ -10,6 +10,7 @@ from combined_sales_pipeline import (
     classify_payment_schema,
     combine_sales_dataframes,
     filter_new_rows_for_append,
+    sort_rows_by_effective_date,
     update_history_dataframe,
 )
 
@@ -133,6 +134,23 @@ class CombinedSalesPipelineTest(unittest.TestCase):
         )
 
         self.assertEqual(len(filtered), 1)
+
+    def test_sheet_append_rows_are_sorted_by_date_ascending(self):
+        unsorted = pd.DataFrame(
+            [
+                {"Fecha": "2026-08-28", "Clave Cruce": "B", "Indice Coincidencia": 1},
+                {"Fecha": "2026-08-27", "Clave Cruce": "A", "Indice Coincidencia": 1},
+                {"Fecha": "2026-08-28", "Clave Cruce": "C", "Indice Coincidencia": 1},
+            ]
+        )
+
+        ordered = sort_rows_by_effective_date(unsorted)
+
+        self.assertEqual(
+            ordered["Fecha"].tolist(),
+            ["2026-08-27", "2026-08-28", "2026-08-28"],
+        )
+        self.assertEqual(ordered["Clave Cruce"].tolist(), ["A", "B", "C"])
 
 
 if __name__ == "__main__":

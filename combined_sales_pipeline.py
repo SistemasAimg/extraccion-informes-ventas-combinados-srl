@@ -6,9 +6,9 @@ puede llegar en dos esquemas distintos:
 * detalle: contiene factura y artículo, por lo que puede relacionarse;
 * resumen: contiene POS/medio de pago/totales y se conserva sin forzar un join.
 
-La persistencia histórica reemplaza las particiones de fecha incluidas en la
-ventana descargada. Esto hace que una ejecución diaria ``ayer -> hoy`` sea
-idempotente y permita capturar correcciones o anulaciones posteriores.
+La persistencia histórica reemplaza la partición del día descargado. Cada
+ejecución diaria procesa únicamente ``ayer -> ayer`` y las reejecuciones son
+idempotentes.
 """
 
 from __future__ import annotations
@@ -204,6 +204,25 @@ def _effective_date_series(df: pd.DataFrame) -> pd.Series:
     for candidate in candidates[1:]:
         result = result.fillna(candidate)
     return result
+
+
+def sort_rows_by_effective_date(df: pd.DataFrame) -> pd.DataFrame:
+    """Ordena cronológicamente un lote sin alterar el orden dentro de cada fecha."""
+
+    out = df.copy()
+    out.attrs.update(df.attrs)
+    if out.empty:
+        return out
+
+    out["_fecha_orden_sheet"] = _effective_date_series(out)
+    out = out.sort_values(
+        "_fecha_orden_sheet",
+        kind="mergesort",
+        na_position="last",
+    )
+    out = out.drop(columns=["_fecha_orden_sheet"]).reset_index(drop=True)
+    out.attrs.update(df.attrs)
+    return out
 
 
 def update_history_dataframe(
@@ -503,6 +522,11 @@ def _upload_google_sheets(tables: Mapping[str, Any], options: Mapping[str, Any])
     for key, tab_name in mapping.items():
         frame = tables[key].copy()
         frame.attrs["timezone"] = options.get("timezone", "America/Argentina/Buenos_Aires")
+        if key == "combined":
+            # El informe llega intercalado por otros criterios de Caddis. Ordenamos
+            # cada lote por la fecha efectiva antes de deduplicar y anexar, de modo
+            # que la columna C quede en orden cronológico ascendente.
+            frame = sort_rows_by_effective_date(frame)
         mode = str(write_modes.get(key, "replace")).strip().lower()
         append_header = False
         if mode == "append_deduplicated":
@@ -586,9 +610,9 @@ def process_combined_reports(
     if not isinstance(now, datetime):
         now = datetime.now()
     window_start = meta.get("yesterday")
-    window_end = meta.get("today")
+    window_end = meta.get("yesterday")
     if not isinstance(window_start, date) or not isinstance(window_end, date):
-        raise ValueError("El runner no informó la ventana yesterday/today.")
+        raise ValueError("El runner no informó la fecha de ayer.")
 
     tables = combine_sales_dataframes(
         pdv_df,

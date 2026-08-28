@@ -5,7 +5,9 @@ Este repositorio ejecuta diariamente dos informes de Caddis dentro de una misma 
 - `317`: Ventas por PDV con costo.
 - `305`, vista detallada `331`: Ventas por formas de pago.
 
-El job usa la ventana inclusiva **ayer → hoy**, conserva los Excel originales y genera una tabla combinada con control de diferencias.
+El job descarga únicamente el día cerrado anterior, con la ventana inclusiva
+**ayer → ayer**. Conserva los Excel originales y genera una tabla combinada con
+control de diferencias.
 
 ## Lógica de combinación
 
@@ -30,14 +32,15 @@ Si Caddis devuelve la vista resumida (`POS`, `TPago`, `Cantidad`, `Importe`, etc
 
 ## Histórico sin duplicados
 
-Las ejecuciones diarias se superponen:
+Cada ejecución procesa un único día:
 
 ```text
-27/08: 26/08 → 27/08
-28/08: 27/08 → 28/08
+Ejecución 28/08: 27/08 → 27/08
+Ejecución 29/08: 28/08 → 28/08
 ```
 
-Por eso no se hace append ciego. La historia local reemplaza las fechas de la ventana y Cloud Storage mantiene particiones reemplazables:
+La historia local reemplaza esa partición diaria y Cloud Storage mantiene
+particiones reemplazables:
 
 ```text
 caddis/ventas-combinadas-srl/raw/<informe>/<run_id>/attempt-XX/<archivo>.xls
@@ -54,9 +57,10 @@ Repetir una ejecución no duplica la fecha y permite incorporar correcciones o a
 
 La pestaña `Ventas combinadas` conserva las filas existentes y agrega únicamente
 claves nuevas al final de la siguiente fila disponible. La comparación usa
-`Clave Cruce + Indice Coincidencia`, por lo que la ventana superpuesta
-`ayer → hoy` y las reejecuciones no duplican ventas. Los encabezados se crean
+`Clave Cruce + Indice Coincidencia`, por lo que las reejecuciones del mismo día
+no duplican ventas. Los encabezados se crean
 sólo cuando la pestaña está vacía y no se vuelven a insertar en cada ejecución.
+Antes de anexar, cada lote se ordena por `Fecha` en forma ascendente.
 
 `PDV raw` y `Formas pago raw` siguen representando el último corte descargado y
 se reemplazan. `Control` agrega una fila por ejecución para conservar la traza.
