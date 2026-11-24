@@ -463,6 +463,19 @@ def _upload_gcs_outputs(
     )
 
 
+def align_sheet_columns(frame: pd.DataFrame, columns: Sequence[str]) -> pd.DataFrame:
+    """Proyecta por nombre al esquema histórico; no altera las descargas originales."""
+    columns = list(columns)
+    if not columns or len(set(columns)) != len(columns):
+        raise ValueError("El orden de columnas de Sheets está vacío o contiene duplicados.")
+    if frame.columns.duplicated().any():
+        raise ValueError("La tabla a cargar contiene nombres de columna duplicados.")
+    missing = [column for column in columns if column not in frame.columns]
+    if missing:
+        raise ValueError(f"Faltan columnas del esquema histórico de Sheets: {missing}")
+    return frame.loc[:, columns].copy()
+
+
 def _upload_google_sheets(tables: Mapping[str, Any], options: Mapping[str, Any]) -> None:
     sheets_cfg = options.get("google_sheets") or {}
     if not sheets_cfg.get("enabled"):
@@ -470,6 +483,13 @@ def _upload_google_sheets(tables: Mapping[str, Any], options: Mapping[str, Any])
     sheet_id = str(sheets_cfg.get("sheet_id") or os.getenv("GOOGLE_SHEET_ID", "")).strip()
     if not sheet_id:
         raise ValueError("Google Sheets está habilitado pero falta sheet_id o GOOGLE_SHEET_ID.")
+
+    # Validar todas las proyecciones antes de realizar cualquier escritura remota.
+    column_orders = sheets_cfg.get("column_order") or {}
+    sheet_tables = {
+        key: align_sheet_columns(frame, column_orders[key]) if key in column_orders else frame
+        for key, frame in tables.items() if key in ("combined", "pdv", "payments", "control")
+    }
 
     from report_pipeline import get_google_credentials, upload_to_sheet
 
@@ -520,7 +540,7 @@ def _upload_google_sheets(tables: Mapping[str, Any], options: Mapping[str, Any])
         ).execute()
 
     for key, tab_name in mapping.items():
-        frame = tables[key].copy()
+        frame = sheet_tables[key].copy()
         frame.attrs["timezone"] = options.get("timezone", "America/Argentina/Buenos_Aires")
         if key == "combined":
             # El informe llega intercalado por otros criterios de Caddis. Ordenamos

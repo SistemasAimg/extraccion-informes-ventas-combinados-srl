@@ -1080,15 +1080,17 @@ def upload_to_sheet(
         min_data_row = max(start_row_min, (header_protect_row + 1 if header_protect_row else start_row_min))
         next_after_last = (last_row_any + 1) if last_row_any else min_data_row
         start_row_write = max(next_after_last, min_data_row)
-        n_rows = df.shape[0]
         n_cols = df.shape[1]
-        _ensure_capacity(start_row_write, n_rows, start_col_idx, n_cols)
         values = []
         wrote_header = False
-        if (not header_exists) and append_header:
+        # Un encabezado editado o fuera del rango de búsqueda no implica
+        # que la tabla esté vacía. Nunca insertar otro entre filas existentes.
+        table_has_content = _last_non_empty_row(rows[start_row_min - 1:]) > 0
+        if (not header_exists) and (not table_has_content) and append_header:
             values.append(df.columns.tolist())
             wrote_header = True
         values += _df_to_values(df)
+        _ensure_capacity(start_row_write, len(values), start_col_idx, n_cols)
         start_cell_effective = f"{start_col_letters}{start_row_write}"
         res = service.spreadsheets().values().update(
             spreadsheetId=sheet_id,
