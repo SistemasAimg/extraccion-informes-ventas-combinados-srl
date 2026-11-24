@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Job diario Caddis: descarga 317 + 305, combina e historiza."""
+"""Job diario Caddis: descarga 303 + 305, combina e historiza."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ import logging
 import os
 import re
 import time
+from urllib.parse import parse_qsl, urlencode
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable, Dict, Mapping, Sequence
@@ -221,7 +222,7 @@ def _accepted_column_sets(report_cfg: Mapping[str, Any]) -> list[list[str]]:
             return result
 
     code = str(report_cfg.get("code") or report_cfg.get("report_code") or "")
-    if code == "317":
+    if code in {"303", "317"}:
         return [["Factura Tipo", "Factura Numero", "Articulo Codigo"]]
     if code == "305":
         return [
@@ -595,6 +596,30 @@ def _prepare_report_screen(
         )
 
 
+def _validate_filter_response(response) -> None:
+    if response.status_code != 200:
+        raise RuntimeError(f"Preparación de filtros: HTTP {response.status_code}")
+    try:
+        result = json.loads(response.content)
+    except (ValueError, UnicodeError) as exc:
+        raise RuntimeError("Caddis devolvió una respuesta AJAX inválida al preparar los filtros") from exc
+    if not isinstance(result, list) or not result or result[0] != 1:
+        raise RuntimeError("Caddis no confirmó la preparación de los filtros")
+
+
+def _download_form(download_cfg, ctx, code):
+    raw = download_cfg.get("raw")
+    if raw:
+        pairs = parse_qsl(legacy._render_str_with_ctx(str(raw), ctx), keep_blank_values=True)
+        pairs = [(key, value) for key, value in pairs if key != "marca_descarga"]
+    else:
+        data = legacy.replace_placeholders(dict(download_cfg.get("data") or {}), ctx)
+        data.setdefault("Informe", code)
+        pairs = [(key, value) for key, value in data.items() if key != "marca_descarga"]
+    pairs.append(("marca_descarga", f"d{time.time_ns() // 1_000_000}"))
+    return pairs
+
+
 def _run_report(config: Mapping[str, Any], report_cfg: Mapping[str, Any], base_ctx):
     code = str(report_cfg.get("code") or report_cfg.get("report_code") or "")
     if not code:
@@ -645,7 +670,7 @@ def _run_report(config: Mapping[str, Any], report_cfg: Mapping[str, Any], base_c
             pantalla_url=pantalla_url,
             pantalla_ref=pantalla_ref,
         )
-        legacy.STEP_RAW(
+        filter_response = legacy.STEP_RAW(
             "POST",
             f"{base}{filter_cfg.get('endpoint', '/gestion/herramientas/metodos/ajax-articulos.php')}",
             headers=filter_cfg.get("headers"),
@@ -653,23 +678,14 @@ def _run_report(config: Mapping[str, Any], report_cfg: Mapping[str, Any], base_c
             body_str=filter_body,
         )
 
-        raw_body = download_cfg.get("raw")
-        if raw_body:
-            return legacy.STEP_RAW(
-                "POST",
-                f"{base}{endpoint}",
-                headers=download_cfg.get("headers"),
-                referer=pantalla_ref,
-                body_str=legacy._render_str_with_ctx(str(raw_body), ctx),
-            )
-        data = legacy.replace_placeholders(dict(download_cfg.get("data") or {}), ctx)
-        data.setdefault("Informe", code)
-        return legacy.STEP(
+        _validate_filter_response(filter_response)
+        data = _download_form(download_cfg, ctx, code)
+        return legacy.STEP_RAW(
             "POST",
             f"{base}{endpoint}",
             headers=download_cfg.get("headers"),
             referer=pantalla_ref,
-            data=data,
+            body_str=urlencode(data),
         )
 
     policy = dict(config.get("download_policy") or {})
@@ -742,7 +758,7 @@ def _run_from_files(config, args, ctx):
     reports = [
         {
             "name": "pdv_costo",
-            "code": "317",
+            "code": "303",
             "filename": Path(args.pdv_file).name,
             "content": Path(args.pdv_file).read_bytes(),
             "content_type": "application/vnd.ms-excel",
@@ -791,7 +807,7 @@ def main() -> int:
     _common_browser_flow(config)
     reports_cfg = config.get("reports") or []
     if not reports_cfg:
-        raise ValueError("vars.yml debe incluir reports con los códigos 317 y 305.")
+        raise ValueError("vars.yml debe incluir reports con los códigos 303 y 305.")
     results = [_run_report(config, report_cfg, ctx) for report_cfg in reports_cfg]
     result = _run_combined_callback(config, results, ctx, local_only=False)
     print(f"Listo: {result}")

@@ -2,7 +2,7 @@
 
 Este repositorio ejecuta diariamente dos informes de Caddis dentro de una misma sesión:
 
-- `317`: Ventas por PDV con costo.
+- `303`: Ventas Detalladas, vista Punto de Venta, con costos.
 - `305`, vista detallada `331`: Ventas por formas de pago.
 
 El job descarga únicamente el día cerrado anterior, con la ventana inclusiva
@@ -73,7 +73,7 @@ en Cloud Storage, incluso cuando Caddis devuelve HTML o un XLS inválido.
 
 La política por defecto realiza tres intentos: el primero inmediato y los
 siguientes después de 3 y 8 segundos. Cada intento vuelve a preparar la
-pantalla, ejecutar `armar_filtroInformesVentas` y descargar el informe. Si
+pantalla, ejecutar `armar_filtroInformes` para ventas o `armar_filtroInformesVentas` para formas de pago y descargar el informe. Si
 Caddis devuelve HTML, además se renueva la sesión.
 
 Los logs informan código de informe, intento, bytes, tipo de contenido, formato,
@@ -90,7 +90,7 @@ Un informe sin registros se considera válido cuando conserva sus encabezados.
 
 Las fechas se renderizan dinámicamente en:
 
-- Los argumentos 5 y 6 de `armar_filtroInformesVentas`.
+- Los argumentos 5 y 6 de la llamada AJAX de cada informe.
 - `field_desde` y `field_hasta`.
 - `SubTitulo`.
 
@@ -191,3 +191,5 @@ La planilla debe estar compartida como editora con `cloudrun@storage-entorno-de-
 
 Sheets muestra la ventana procesada; Cloud Storage conserva el histórico completo y los Excel originales.
 Los objetos de este proyecto se guardan bajo el prefijo aislado `caddis/ventas-combinadas-srl`.
+
+Las dos descargas generan `marca_descarga` en cada intento. Ventas conserva el nombre interno `pdv_costo` para mantener las rutas históricas. Antes de exportar se valida la respuesta AJAX; ventas requiere también `Costo Unitario` y `Costo Total`.

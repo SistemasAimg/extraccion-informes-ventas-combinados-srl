@@ -1,6 +1,6 @@
 """Pipeline para combinar e historizar informes de ventas de Caddis.
 
-El informe 317 (Ventas por PDV c/Costo) es la tabla principal. El informe 305
+El informe 303 (Ventas Detalladas por PDV con costos) es la tabla principal. El informe 305
 puede llegar en dos esquemas distintos:
 
 * detalle: contiene factura y artículo, por lo que puede relacionarse;
@@ -584,7 +584,7 @@ def process_combined_reports(
 
     from report_pipeline import read_report_bytes_to_df
 
-    pdv_report = _find_report(reports, code="317", name="pdv_costo")
+    pdv_report = _find_report(reports, code="303", name="pdv_costo")
     payment_report = _find_report(reports, code="305", name="formas_pago")
 
     def report_dataframe(report: Mapping[str, Any], signatures: Sequence[set[str]]):

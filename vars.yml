@@ -8,7 +8,10 @@
   "timezone": "America/Argentina/Buenos_Aires",
   "download_policy": {
     "max_attempts": 3,
-    "retry_delays_seconds": [3, 8],
+    "retry_delays_seconds": [
+      3,
+      8
+    ],
     "min_bytes": 512
   },
   "credenciales": {
@@ -70,22 +73,31 @@
   "reports": [
     {
       "name": "pdv_costo",
-      "code": "317",
+      "code": "303",
       "save_file": true,
       "save_as": "data/raw/pdv_costo/Informe_Ventas_por_PDV_c_Costo_{today:%Y%m%d}.xls",
       "validation": {
         "header_scan_rows": 20,
-        "allowed_formats": ["excel_xls", "excel_xlsx"],
+        "allowed_formats": [
+          "excel_xls",
+          "excel_xlsx"
+        ],
         "accepted_column_sets": [
-          ["Factura Tipo", "Factura Numero", "Articulo Codigo"]
+          [
+            "Factura Tipo",
+            "Factura Numero",
+            "Articulo Codigo",
+            "Costo Unitario",
+            "Costo Total"
+          ]
         ]
       },
       "armar_filtro": {
         "endpoint": "/gestion/herramientas/metodos/ajax-articulos.php",
-        "sfunc": "armar_filtroInformesVentas",
+        "sfunc": "armar_filtroInformes",
         "args": [
-          "317",
-          "",
+          "303",
+          "303",
           "",
           "",
           "",
@@ -191,12 +203,15 @@
           "field_gerente": "NULL",
           "field_gerente_activo": "1",
           "accion": "",
-          "Informe": "317",
+          "Informe": "303",
           "SubTitulo": "Del {yesterday:%d/%m/%Y} al {yesterday:%d/%m/%Y}",
           "Filtro": "",
           "Filtro_A1": "",
           "Filtro_A2": "",
-          "Filtro_A3": ""
+          "Filtro_A3": "",
+          "field_vista": "303",
+          "dato_cliente": "",
+          "field_cliente": "NULL"
         },
         "headers": {
           "Content-Type": "application/x-www-form-urlencoded",
@@ -217,10 +232,23 @@
       "save_as": "data/raw/formas_pago/Informe_Ventas_Formas_de_Pago_{today:%Y%m%d}.xls",
       "validation": {
         "header_scan_rows": 20,
-        "allowed_formats": ["excel_xls", "excel_xlsx"],
+        "allowed_formats": [
+          "excel_xls",
+          "excel_xlsx"
+        ],
         "accepted_column_sets": [
-          ["Fc Tipo", "Fc_Nro", "Parte"],
-          ["POS", "TPago", "Cantidad", "Importe", "Total"]
+          [
+            "Fc Tipo",
+            "Fc_Nro",
+            "Parte"
+          ],
+          [
+            "POS",
+            "TPago",
+            "Cantidad",
+            "Importe",
+            "Total"
+          ]
         ]
       },
       "armar_filtro": {
